@@ -1,7 +1,7 @@
 {
   "name": "claude-glide",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Claude Glide - an unofficial Flappy-style fan game: tap to flap, thread the gaps, beat your best. Built by CyberSquad0 + Claude.",
   "author": { "name": "CyberSquad0", "url": "https://www.cs0.dev" },
