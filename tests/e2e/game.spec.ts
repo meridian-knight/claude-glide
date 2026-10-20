@@ -345,6 +345,12 @@ test.describe('mobile readiness', () => {
     });
     expect(m.scrollW).toBeLessThanOrEqual(m.vw);
     expect(m.deckInDeck).toBe(true);
+    // No element lets a fast double tap zoom the page (touch-action is not inherited).
+    const zoomable = await page.evaluate(() =>
+      ['body', '.handheld', '.hud', '.scoreboard', '.title', '.screen', '#board', '#overlay', '#action-btn', '.deck', '#deck-left', '#pause-btn', '#help-btn', '#mute-btn', '.foot', '.foot a', '#help', '.modal-panel']
+        .filter((sel) => getComputedStyle(document.querySelector(sel)!).touchAction === 'auto'),
+    );
+    expect(zoomable).toEqual([]);
     for (const c of m.chips) {
       expect(c.width).toBeGreaterThanOrEqual(44);
       expect(c.height).toBeGreaterThanOrEqual(44);

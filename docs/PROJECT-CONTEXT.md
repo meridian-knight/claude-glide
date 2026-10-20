@@ -1,6 +1,6 @@
 # Claude Glide: project context and handover
 
-Read this first when resuming development. It records what the game is, the decisions that shaped it, how it is built, tested and deployed, and what is still open. Second game in the CyberSquad0 retro arcade series, after Claude Swarm (Snake). Last updated for release 1.0.0 (2026-10-20).
+Read this first when resuming development. It records what the game is, the decisions that shaped it, how it is built, tested and deployed, and what is still open. Second game in the CyberSquad0 retro arcade series, after Claude Swarm (Snake). Last updated for release 1.0.1 (2026-10-20).
 
 ## What it is
 
@@ -67,6 +67,7 @@ tests/e2e      Playwright matrix, 14 projects (desktop, short desktop, five phon
 - **Audio** unlocks on pointerdown, pointerup, touchend, click and keydown and resumes a suspended context; a silent buffer kick helps older iOS. Flap is a quiet triangle chirp. Mute persists in localStorage.
 - **Haptics:** 15 ms on score, 30/40/60 ms on death, never on flap; only where `navigator.vibrate` exists on a coarse-pointer device (Android). iOS has no vibration API and nothing promises it.
 - **Reduced motion** disables parallax scroll, hover bob, death tumble and shake, the "+1" rise, the prompt blink, overlay transitions and mascot motion.
+- **No double-tap zoom (1.0.1).** `touch-action` is not inherited, so `manipulation` is set on every element (`*`), with `none` on the play surface and `pan-y` on the overlay; a non-passive `touchend` guard additionally cancels a second tap within 350 ms outside buttons and links for older WebKit. Pinch zoom is deliberately left available. The e2e readiness test asserts no key element computes to `touch-action: auto`.
 - **Touch layout:** chips (pause, help, sound) in a row under the screen, never over the play surface; short landscape puts them in a column to the left of the screen. The screen is `aspect-ratio: 3/4`, sized from `--vh - --chrome` with a `--board-min` floor; short screens scroll naturally.
 
 ## Lineage (what came from Claude Swarm)
@@ -104,7 +105,8 @@ node scripts/audit-help.mjs            # help dialog fit across 6 viewports
 
 | Tag | Content |
 |---|---|
-| `v1.0.0` / `deployed-v1.0.0` | first public release |
+| `v1.0.0` / `deployed-v1.0.0` | first public release (2026-10-20) |
+| `v1.0.1` / `deployed-v1.0.1` | no double-tap zoom on any element (owner found it on a phone) |
 
 ## Verified on physical devices
 

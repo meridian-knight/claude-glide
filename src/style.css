@@ -31,6 +31,15 @@
   box-sizing: border-box;
 }
 
+/* No double-tap zoom anywhere: touch-action is not inherited, so it goes on
+   every element (the play surface overrides it with `none`, the overlay with
+   `pan-y`). Pinch zoom stays available for accessibility. */
+*,
+*::before,
+*::after {
+  touch-action: manipulation;
+}
+
 html,
 body {
   margin: 0;
