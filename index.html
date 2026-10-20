@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#15110e" />
+    <title>Claude Glide | Retro Flappy-Style Arcade Game | CyberSquad0</title>
+    <meta name="description" content="Tap to flap, thread the gaps and beat your best. A free retro arcade fan game inspired by Flappy Bird, for desktop and mobile. Built by CyberSquad0 + Claude." />
+    <meta name="author" content="CyberSquad0" />
+    <meta name="application-name" content="Claude Glide" />
+    <meta name="apple-mobile-web-app-title" content="Claude Glide" />
+    <link rel="canonical" href="https://meridian-knight.github.io/claude-glide/" />
+
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="./favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="./favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" sizes="180x180" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Claude Glide" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:url" content="https://meridian-knight.github.io/claude-glide/" />
+    <meta property="og:title" content="Claude Glide | Retro Flappy-Style Arcade Game | CyberSquad0" />
+    <meta property="og:description" content="Tap to flap, thread the gaps and beat your best. A free retro arcade fan game inspired by Flappy Bird, for desktop and mobile. Built by CyberSquad0 + Claude." />
+    <meta property="og:image" content="https://meridian-knight.github.io/claude-glide/social-preview-v1.png" />
+    <meta property="og:image:secure_url" content="https://meridian-knight.github.io/claude-glide/social-preview-v1.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Claude Glide: an orange pixel agent flying through a gap between two stacks of chips. Tap to flap. Thread the gaps. Beat your best. Unofficial fan game by CyberSquad0 + Claude." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Claude Glide | Retro Flappy-Style Arcade Game | CyberSquad0" />
+    <meta name="twitter:description" content="Tap to flap, thread the gaps and beat your best. A free retro arcade fan game inspired by Flappy Bird, for desktop and mobile. Built by CyberSquad0 + Claude." />
+    <meta name="twitter:image" content="https://meridian-knight.github.io/claude-glide/social-preview-v1.png" />
+    <meta name="twitter:image:alt" content="Claude Glide: an orange pixel agent flying through a gap between two stacks of chips. Tap to flap. Thread the gaps. Beat your best. Unofficial fan game by CyberSquad0 + Claude." />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "Claude Glide",
+        "url": "https://meridian-knight.github.io/claude-glide/",
+        "image": "https://meridian-knight.github.io/claude-glide/social-preview-v1.png",
+        "description": "Tap to flap, thread the gaps and beat your best. A free retro arcade fan game inspired by Flappy Bird, for desktop and mobile. Built by CyberSquad0 + Claude.",
+        "genre": "Arcade",
+        "gamePlatform": "Web browser",
+        "applicationCategory": "Game",
+        "operatingSystem": "Any",
+        "isAccessibleForFree": true,
+        "inLanguage": "en",
+        "author": { "@type": "Organization", "name": "CyberSquad0", "url": "https://www.cs0.dev" }
+      }
+    </script>
+  </head>
+  <body data-status="idle">
+    <main class="handheld">
+      <header class="hud">
+        <div class="brand">
+          <canvas id="hud-mascot" class="hud-mascot" width="24" height="24" aria-hidden="true"></canvas>
+          <h1 class="title">Claude Glide</h1>
+        </div>
+        <dl class="scoreboard" aria-label="Scoreboard">
+          <div class="stat"><dt>Score</dt><dd id="score">0</dd></div>
+          <div class="stat"><dt>Best</dt><dd id="best">0</dd></div>
+        </dl>
+        <div class="hud-buttons">
+          <button id="help-btn" class="chip" type="button" aria-label="How to play" aria-haspopup="dialog" aria-expanded="false" aria-controls="help" title="How to play">?</button>
+          <button id="pause-btn" class="chip" type="button" aria-label="Pause" title="Pause (P)" disabled>❚❚</button>
+          <button id="mute-btn" class="chip" type="button" aria-label="Mute sound" aria-pressed="false" title="Toggle sound">🔊</button>
+        </div>
+      </header>
+
+      <section class="screen" id="screen">
+        <canvas id="board" width="300" height="400" aria-label="Game screen"></canvas>
+        <p id="hover-hint" class="hover-hint" aria-live="polite" hidden></p>
+
+        <div id="overlay" class="overlay" role="dialog" aria-labelledby="overlay-title">
+          <div class="overlay-inner">
+            <canvas id="mascot" class="mascot" width="72" height="72" aria-hidden="true"></canvas>
+            <p class="eyebrow" id="overlay-eyebrow">Unofficial fan game</p>
+            <h2 id="overlay-title">Claude Glide</h2>
+            <p id="overlay-text" class="overlay-text"></p>
+            <p id="overlay-keys" class="keys"></p>
+            <div id="overlay-controls" class="controls"></div>
+            <button id="action-btn" class="action" type="button">Start</button>
+            <p id="overlay-hint" class="hint-line" hidden></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="deck" id="deck" aria-label="Game controls">
+        <div class="deck-left" id="deck-left"></div>
+      </section>
+
+      <div id="help" class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
+        <div class="modal-panel">
+          <h2 id="help-title">How to play</h2>
+          <div id="help-controls" class="controls"></div>
+          <ul class="rules">
+            <li>Tap, click or press Space to flap.</li>
+            <li>Fly through the gap in every stack to score.</li>
+            <li>Avoid the stacks and the ground.</li>
+          </ul>
+          <button id="help-close" class="action" type="button">Close</button>
+        </div>
+      </div>
+
+      <footer class="foot">
+        <p class="legal">A FAN GAME BUILT BY <a class="credit-link" href="https://www.cs0.dev" target="_blank" rel="noopener">CYBER SQUAD ZERO</a> + CLAUDE.</p>
+        <p class="legal">Not affiliated with or endorsed by Anthropic.</p>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

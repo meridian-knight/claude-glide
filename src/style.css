@@ -1,0 +1,953 @@
+:root {
+  --bg: #15110e;
+  --bezel: #241c16;
+  --bezel-edge: #3a2d23;
+  --bezel-dark: #0d0a08;
+  --screen: #1c1712;
+  --orange: #d97757;
+  --orange-deep: #9a4f36;
+  --orange-light: #f4a97a;
+  --cream: #f3e6cf;
+  --muted: #9b8b78;
+  --text: #efe4d3;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  /* Vertical space taken by everything except the screen. */
+  --chrome: 140px;
+  /* Touch deck chip size. */
+  --util: 52px;
+  /* Smallest screen width we accept before letting the page scroll (touch only). */
+  --board-min: 0px;
+  --vh: 100vh;
+  color-scheme: dark;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --vh: 100dvh;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: var(--vh);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(217, 119, 87, 0.12), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.3;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  /* The page scrolls normally everywhere except the play surface (see .screen). */
+  touch-action: manipulation;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.handheld {
+  position: relative;
+  width: min(100%, 480px);
+  background: linear-gradient(180deg, #2a211a, var(--bezel));
+  border-radius: 28px;
+  padding: 14px;
+  box-shadow:
+    0 0 0 2px var(--bezel-edge),
+    0 24px 60px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* HUD -------------------------------------------------------------- */
+.hud {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 2px 4px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hud-mascot {
+  display: block;
+  flex: none;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  margin-top: -1px;
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--orange);
+  text-shadow:
+    1px 1px 0 var(--orange-deep),
+    0 0 12px rgba(217, 119, 87, 0.45);
+}
+
+.scoreboard {
+  display: flex;
+  margin: 0 0 0 auto;
+  padding: 4px 4px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--bezel-dark);
+  border-radius: 8px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 0 10px;
+  min-width: 0;
+}
+
+.stat + .stat {
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.stat dt {
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stat dd {
+  margin: 0;
+  min-width: 3ch;
+  text-align: right;
+  font-size: 18px;
+  line-height: 1.1;
+  font-weight: 700;
+  color: var(--cream);
+  font-variant-numeric: tabular-nums;
+  transform-origin: 100% 60%;
+}
+
+.stat dd.bump {
+  animation: stat-bump 0.18s ease-out;
+}
+
+/* Game-over mascot: a slow 1px sway, dropped under reduced motion. */
+.mascot[data-mode="over"] {
+  animation: dizzy-sway 1.2s steps(2, end) infinite;
+}
+
+@keyframes dizzy-sway {
+  0% {
+    transform: translateX(-1px);
+  }
+  100% {
+    transform: translateX(1px);
+  }
+}
+
+@keyframes stat-bump {
+  0% {
+    transform: scale(1.25);
+    color: var(--orange-light);
+  }
+  100% {
+    transform: scale(1);
+    color: var(--cream);
+  }
+}
+
+.hud-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.hud-buttons:empty {
+  display: none;
+}
+
+.chip {
+  position: relative;
+  width: 36px;
+  height: 32px;
+  border-radius: 8px;
+  border: 2px solid #4d3c2f;
+  background: var(--bezel-edge);
+  color: var(--cream);
+  font-size: 13px;
+  box-shadow: 0 2px 0 var(--bezel-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  touch-action: manipulation;
+}
+
+.chip:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.chip[aria-pressed="true"] {
+  background: #2a211a;
+  color: var(--muted);
+}
+
+.chip:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 var(--bezel-dark);
+}
+
+/* Screen ----------------------------------------------------------- */
+/* Portrait 3:4 frame sized from the viewport height; the whole frame is the
+   flap surface, so touches here never scroll or zoom the page. */
+.screen {
+  position: relative;
+  width: min(100%, max(var(--board-min), calc((var(--vh) - var(--chrome)) * 3 / 4)));
+  max-width: 420px;
+  aspect-ratio: 3 / 4;
+  margin: 0 auto;
+  padding: 8px;
+  background: #120e0b;
+  border-radius: 10px;
+  box-shadow:
+    inset 0 0 0 2px var(--bezel-dark),
+    inset 0 1px 0 3px rgba(243, 230, 207, 0.05),
+    inset 0 0 36px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  cursor: pointer;
+}
+
+/* Faint scanlines for the LCD feel; light enough to never hide the agent. */
+.screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.09) 0,
+    rgba(0, 0, 0, 0.09) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+
+#board {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  touch-action: none;
+  /* Sized explicitly by the renderer from the frame's content box; no CSS
+     clamps here, so the canvas always maps 1:1 to device pixels. */
+  flex: none;
+  background: #120e0b;
+  box-shadow:
+    0 0 0 1px var(--bezel-dark),
+    0 0 18px rgba(217, 119, 87, 0.08);
+}
+
+/* "Tap to flap" prompt while a run hovers before its first flap. */
+.hover-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 22%;
+  z-index: 2;
+  margin: 0;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cream);
+  text-shadow:
+    0 0 8px var(--orange),
+    0 1px 0 #000;
+  pointer-events: none;
+  animation: prompt-blink 1s steps(2, end) infinite;
+}
+
+.hover-hint[hidden] {
+  display: none;
+}
+
+@keyframes prompt-blink {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.35;
+  }
+}
+
+/* ?debug readout for on-device sizing checks. */
+.debug-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+  margin: 0;
+  padding: 6px 8px;
+  font: 10px/1.35 var(--mono);
+  color: var(--cream);
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--bezel-edge);
+  border-radius: 6px;
+  pointer-events: none;
+  white-space: pre;
+}
+
+/* Overlay ---------------------------------------------------------- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  overflow-y: auto;
+  text-align: center;
+  padding: 20px;
+  background: rgba(21, 17, 14, 0.84);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity 0.16s ease-out,
+    transform 0.16s ease-out;
+  /* The overlay may scroll on short screens even though the frame beneath it does not. */
+  touch-action: pan-y;
+  cursor: default;
+}
+
+.overlay.is-open {
+  opacity: 1;
+  transform: none;
+}
+
+/* While fading out after Start or Resume the overlay must not swallow the first tap. */
+.overlay:not(.is-open) {
+  pointer-events: none;
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+/* Centres when the content fits, scrolls when it does not. */
+.overlay-inner {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.hint-line {
+  margin: 2px 0 0;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hint-line[hidden] {
+  display: none;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.overlay h2 {
+  margin: 0;
+  font-size: clamp(18px, 5vw, 24px);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--orange);
+  text-shadow: 0 0 14px rgba(217, 119, 87, 0.6);
+}
+
+.overlay-text {
+  margin: 0;
+  max-width: 32ch;
+  color: var(--text);
+}
+
+.keys {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.keys[hidden] {
+  display: none;
+}
+
+.action {
+  margin-top: 6px;
+  background: var(--orange);
+  color: #1a110b;
+  border: 0;
+  padding: 10px 22px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  box-shadow: 0 3px 0 var(--orange-deep);
+  touch-action: manipulation;
+}
+
+.action:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--orange-deep);
+}
+
+.action:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+/* Keycap legend ---------------------------------------------------- */
+.controls {
+  --key: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 2px 0;
+}
+
+.controls[hidden] {
+  display: none;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.control-label {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--key);
+  height: var(--key);
+  padding: 0 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cream);
+  background: var(--bezel-edge);
+  border: 2px solid #4d3c2f;
+  border-radius: 5px;
+  box-shadow: 0 2px 0 var(--bezel-dark);
+}
+
+.key-wide {
+  min-width: 58px;
+}
+
+/* Touch legend: a fingertip ripple. */
+.tap-icon {
+  position: relative;
+  display: block;
+  width: calc(var(--key) + 8px);
+  height: calc(var(--key) + 8px);
+  border-radius: 50%;
+  border: 2px solid #4d3c2f;
+  background: var(--bezel-edge);
+  box-shadow: 0 2px 0 var(--bezel-dark);
+}
+
+.tap-icon i {
+  position: absolute;
+  inset: 30%;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.3);
+}
+
+.control-group-tap {
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.control-group-tap .control-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+/* Mascot ----------------------------------------------------------- */
+.mascot {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  margin-bottom: -2px;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.mascot[hidden] {
+  display: none;
+}
+
+/* Help dialog ------------------------------------------------------ */
+.modal {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(21, 17, 14, 0.78);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 0.16s ease-out;
+}
+
+.modal.is-open {
+  opacity: 1;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal-panel {
+  width: min(100%, 360px);
+  max-height: 100%;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 16px 14px;
+  text-align: center;
+  background: linear-gradient(180deg, #2a211a, var(--bezel));
+  border: 2px solid var(--bezel-edge);
+  border-radius: 14px;
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transform: scale(0.96);
+  transition: transform 0.16s ease-out;
+}
+
+.modal.is-open .modal-panel {
+  transform: none;
+}
+
+.modal-panel h2 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--orange);
+  text-shadow: 1px 1px 0 var(--orange-deep);
+}
+
+.rules {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.rules li::before {
+  content: "✦ ";
+  color: var(--orange);
+}
+
+/* Touch deck: pause, help and sound in a row under the screen ---------- */
+.deck {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 4px max(6px, env(safe-area-inset-right, 0px)) calc(2px + env(safe-area-inset-bottom, 0px))
+    max(6px, env(safe-area-inset-left, 0px));
+  -webkit-touch-callout: none;
+}
+
+.deck-left {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+}
+
+.deck .chip {
+  width: var(--util);
+  height: var(--util);
+  border-radius: 50%;
+  font-size: 17px;
+  box-shadow: 0 4px 0 var(--bezel-dark);
+}
+
+.deck .chip:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--bezel-dark);
+}
+
+.deck #pause-btn:not(:disabled) {
+  background: var(--orange);
+  color: #1a110b;
+  border-color: var(--orange-deep);
+  box-shadow: 0 4px 0 var(--orange-deep);
+}
+
+.deck #pause-btn:not(:disabled):active {
+  box-shadow: 0 1px 0 var(--orange-deep);
+}
+
+.deck #pause-btn:disabled {
+  opacity: 0.45;
+}
+
+.deck #mute-btn[aria-pressed="true"] {
+  background: #2a211a;
+  color: var(--muted);
+  border-style: dashed;
+}
+
+/* Footer ----------------------------------------------------------- */
+.foot {
+  text-align: center;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.foot p {
+  margin: 2px 0;
+}
+
+/* Creator credit link in the footer. */
+.credit-link {
+  color: var(--cream);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(243, 230, 207, 0.35);
+}
+
+.credit-link:hover,
+.credit-link:focus-visible {
+  color: var(--orange-light);
+  border-bottom-color: var(--orange-light);
+}
+
+body[data-layout="touch"] #overlay-controls {
+  display: none;
+}
+
+body[data-layout="touch"] .action {
+  min-height: 44px;
+  min-width: 44%;
+  padding: 9px 20px;
+}
+
+/* Breakpoints ------------------------------------------------------ */
+
+/* Desktop: centre the handheld when there is room; shorter windows stay
+   top-aligned and scroll normally. */
+@media (min-height: 720px) {
+  body[data-layout="desktop"] {
+    align-items: center;
+  }
+}
+
+/* Short desktop windows: trim vertical padding so the screen keeps its size. */
+@media (max-height: 700px) {
+  body {
+    padding-top: max(8px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Touch layouts: deck visible, HUD chips move into the deck (see layout.ts). */
+@media (pointer: coarse), (max-width: 700px) {
+  :root {
+    --chrome: 210px;
+    --board-min: 240px;
+  }
+  .deck {
+    display: flex;
+  }
+  .controls {
+    --key: 21px;
+    gap: 12px;
+  }
+  .overlay {
+    padding: 12px;
+  }
+  .overlay-inner {
+    gap: 6px;
+  }
+  .keys {
+    font-size: 10px;
+  }
+  .modal-panel {
+    padding: 12px;
+    gap: 8px;
+  }
+  .foot {
+    white-space: nowrap;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+  }
+}
+
+/* Short phones: smaller chips so the screen keeps its size. */
+@media (pointer: coarse) and (max-height: 680px), (max-width: 700px) and (max-height: 680px) {
+  :root {
+    --chrome: 196px;
+    --util: 48px;
+    --board-min: 240px;
+  }
+  .handheld {
+    gap: 8px;
+    padding: 12px;
+  }
+  .deck-left {
+    gap: 18px;
+  }
+}
+
+/* Very narrow phones (320px class): compact deck and frame. */
+@media (max-width: 340px) {
+  :root {
+    --util: 48px;
+  }
+  .title {
+    display: none; /* the mascot carries the brand; the start screen shows the name */
+  }
+  body {
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
+  }
+  .handheld {
+    padding: 10px;
+    border-radius: 20px;
+  }
+  .deck {
+    gap: 8px;
+    padding-inline: 2px;
+  }
+}
+
+/* Narrow phones: keep the HUD on one row and the footer on two lines. */
+@media (max-width: 480px) {
+  .hud {
+    gap: 8px;
+    padding: 2px 0;
+  }
+  .title {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+  .brand {
+    gap: 6px;
+  }
+  .scoreboard {
+    padding: 3px 2px;
+  }
+  .stat {
+    padding: 0 7px;
+  }
+  .stat dt {
+    font-size: 7px;
+    letter-spacing: 0.1em;
+  }
+  .stat dd {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 400px) {
+  .foot {
+    font-size: 8.5px;
+    letter-spacing: 0.03em;
+  }
+  /* Small screens: tighter start screen so mascot, title and Start all fit. */
+  .overlay {
+    padding: 10px;
+  }
+  .overlay-inner {
+    gap: 5px;
+  }
+  .overlay-text {
+    font-size: 12px;
+  }
+  .controls {
+    --key: 19px;
+    gap: 10px;
+  }
+  .action {
+    margin-top: 2px;
+    padding: 8px 18px;
+  }
+}
+
+/* Tablets: a roomier handheld. */
+@media (pointer: coarse) and (min-width: 768px) {
+  .handheld {
+    width: min(100%, 560px);
+  }
+  .screen {
+    max-width: 480px;
+  }
+  .deck {
+    padding-inline: 24px;
+  }
+}
+
+/* Short landscape phones: chips left, screen centre. */
+@media (max-height: 520px) and (orientation: landscape) {
+  :root {
+    --chrome: 110px;
+    --util: 48px;
+    --board-min: 200px;
+  }
+  body {
+    padding-top: max(6px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+  }
+  .handheld {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-areas:
+      "hud hud hud"
+      "left screen right"
+      "foot foot foot";
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+  .hud { grid-area: hud; padding: 0; }
+  .screen { grid-area: screen; }
+  .deck { display: contents; }
+  .deck-left { grid-area: left; justify-self: center; flex-direction: column; gap: 12px; }
+  .foot { grid-area: foot; font-size: 9px; }
+  .foot p { margin: 0; }
+  /* Not enough height for the mascot; keep title, controls and Start in view. */
+  .mascot { display: none; }
+  .overlay {
+    padding: 10px;
+  }
+  .overlay-inner {
+    gap: 4px;
+  }
+  .overlay h2 { font-size: 16px; }
+  .overlay-text {
+    font-size: 11px;
+    max-width: 40ch;
+  }
+  .controls { --key: 18px; gap: 10px; }
+  /* The screen is only ~200px wide here; the legend would wrap past the
+     Start button. The help dialog still shows the full legend. */
+  .overlay .controls { display: none; }
+  .action { padding: 7px 16px; font-size: 12px; }
+  .modal-panel { padding: 8px 10px; gap: 6px; }
+  .modal-panel h2 { font-size: 13px; }
+  .rules { font-size: 11px; gap: 2px; }
+}
+
+/* Reduced motion: keep feedback, drop movement. */
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .modal,
+  .modal-panel {
+    transition: none;
+    transform: none;
+  }
+  .stat dd.bump {
+    animation: stat-flash 0.18s linear;
+  }
+  .hover-hint {
+    animation: none;
+  }
+  .action:active,
+  .chip:active,
+  .deck .chip:active {
+    transform: none;
+  }
+  .mascot[data-mode="over"] {
+    animation: none;
+  }
+}
+
+@keyframes stat-flash {
+  0% {
+    color: var(--orange-light);
+  }
+  100% {
+    color: var(--cream);
+  }
+}

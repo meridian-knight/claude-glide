@@ -1,0 +1,26 @@
+{
+  "name": "claude-glide",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Claude Glide - an unofficial Flappy-style fan game: tap to flap, thread the gaps, beat your best. Built by CyberSquad0 + Claude.",
+  "author": { "name": "CyberSquad0", "url": "https://www.cs0.dev" },
+  "homepage": "https://meridian-knight.github.io/claude-glide/",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "serve:subpath": "node scripts/serve-dist.mjs 4174",
+    "assets": "node scripts/make-assets.mjs public social-preview-v1.png",
+    "shots": "node scripts/readme-shots.mjs docs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.60.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.4",
+    "vitest": "4.1.12"
+  }
+}
