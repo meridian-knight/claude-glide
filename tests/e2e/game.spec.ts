@@ -300,15 +300,24 @@ test.describe('touch play', () => {
     await page.locator('#mute-btn').tap();
     await expect(page.locator('#mute-btn')).toHaveAttribute('aria-pressed', 'false');
     expect(await status(page)).toBe('paused');
-    // A fast double tap on a chip is a zoom gesture: the second tap is swallowed, so the
-    // pause chip toggles once (paused → running), and nothing zooms.
+    // Every tap is a synthesised click: a fast double tap on the pause chip toggles twice
+    // (paused → running → paused) and never zooms.
     await page.waitForTimeout(400);
     const pauseBox = (await page.locator('#pause-btn').boundingBox())!;
     await page.touchscreen.tap(pauseBox.x + pauseBox.width / 2, pauseBox.y + pauseBox.height / 2);
     await page.waitForTimeout(120);
     await page.touchscreen.tap(pauseBox.x + pauseBox.width / 2, pauseBox.y + pauseBox.height / 2);
     await page.waitForTimeout(200);
-    expect(await status(page)).toBe('running');
+    expect(await status(page)).toBe('paused');
+    // A drag that ends on the pause chip is not a tap and does not click it.
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: pauseBox.x + pauseBox.width / 2 - 60, y: pauseBox.y + pauseBox.height / 2, id: 0 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: pauseBox.x + pauseBox.width / 2, y: pauseBox.y + pauseBox.height / 2, id: 0 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(200);
+    expect(await status(page)).toBe('paused');
+    await page.locator('#pause-btn').tap();
+    await expect.poll(() => status(page)).toBe('running');
     await page.locator('#help-btn').tap();
     await expect.poll(() => status(page)).toBe('paused');
     await page.locator('#help-close').tap();
@@ -322,6 +331,27 @@ test.describe('touch play', () => {
     expect(await status(page)).toBe('paused');
     expect(await state(page)).toEqual(frozen);
     expect(await flaps(page)).toBe(1);
+  });
+
+  test('a two-thumb burst of taps gives one flap per tap and nothing else', async ({ page }) => {
+    await page.locator('#action-btn').tap();
+    await expect.poll(() => status(page)).toBe('running');
+    const board = (await page.locator('#board').boundingBox())!;
+    const cx = board.x + board.width / 2;
+    const cy = board.y + board.height * 0.75;
+    for (let i = 0; i < 5; i++) {
+      await page.touchscreen.tap(cx + (i % 2 === 0 ? -15 : 15), cy);
+      await page.waitForTimeout(80);
+    }
+    await page.waitForTimeout(200);
+    expect(await flaps(page)).toBe(5);
+    expect(await status(page)).toBe('running');
+    // The help dialog's backdrop still closes on a tap (synthesised click on a non-button).
+    await page.locator('#help-btn').tap();
+    await expect(page.locator('#help')).toBeVisible();
+    const help = (await page.locator('#help').boundingBox())!;
+    await page.touchscreen.tap(help.x + 8, help.y + 8);
+    await expect(page.locator('#help')).toBeHidden();
   });
 
   test('a tap on the overlay never starts or restarts; only the button does', async ({ page }) => {

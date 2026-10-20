@@ -1,6 +1,6 @@
 # Claude Glide: project context and handover
 
-Read this first when resuming development. It records what the game is, the decisions that shaped it, how it is built, tested and deployed, and what is still open. Second game in the CyberSquad0 retro arcade series, after Claude Swarm (Snake). Last updated for release 1.1.0 (2026-10-20).
+Read this first when resuming development. It records what the game is, the decisions that shaped it, how it is built, tested and deployed, and what is still open. Second game in the CyberSquad0 retro arcade series, after Claude Swarm (Snake). Last updated for release 1.1.1 (2026-10-20).
 
 ## What it is
 
@@ -67,7 +67,7 @@ tests/e2e      Playwright matrix, 14 projects (desktop, short desktop, five phon
 - **Audio** unlocks on pointerdown, pointerup, touchend, click and keydown and resumes a suspended context; a silent buffer kick helps older iOS. Flap is a quiet triangle chirp. Mute persists in localStorage.
 - **Haptics:** 15 ms on score, 30/40/60 ms on death, never on flap; only where `navigator.vibrate` exists on a coarse-pointer device (Android). iOS has no vibration API and nothing promises it.
 - **Reduced motion** disables parallax scroll, hover bob, death tumble and shake, the "+1" rise, the prompt blink, overlay transitions and mascot motion.
-- **Zoom disabled (1.0.1, completed in 1.1.0 at the owner's request).** `touch-action` is not inherited, so `manipulation` is set on every element (`*`), with `none` on the play surface and `pan-y` on the overlay. The viewport meta carries `maximum-scale=1, user-scalable=no`; a non-passive `touchend` guard cancels a second tap within 350 ms anywhere but a link (a fast double tap on a chip is a zoom gesture, so its second click is dropped on purpose); WebKit `gesturestart/change/end` are cancelled (pinch). Pinch zoom is therefore off everywhere; the UI keeps 44 px targets. The e2e tests assert the meta and that no key element computes to `touch-action: auto`.
+- **Zoom disabled (1.0.1 → 1.1.1, at the owner's request).** `touch-action: manipulation` on every element (`*`; it is not inherited), `none` on the play surface, `pan-y` on the overlay; viewport meta `maximum-scale=1, user-scalable=no`; WebKit `gesturestart/change/end` cancelled (pinch). Those were not enough on iPhone Safari during fast two-thumb bursts (Safari's double-tap tolerance is wider than a 40 px guard, and overlapping touches bypassed a "no other finger down" check), so since 1.1.1 **every `touchend` on the page is cancelled** (the FastClick technique, which removes Safari's double-tap zoom and its native click) and `input.ts` synthesises the click itself: `button.click()` for taps on enabled buttons, a dispatched click for other targets (the help backdrop); a touch that moved ≥ 10 px is not a tap; links stay native; `data-pressed` gives the pressed look. `?debug` shows `visualViewport.scale` and the last touch target. The e2e tests cover the burst, the drag, the backdrop and the meta.
 - **Backdrop (1.1.0): a data centre at dusk.** `src/ui/backdrop.ts`: sky gradient whose phase (dusk → night → dawn → day) advances every 10 points with a 1.5 s crossfade and a "10!" float; far rack skyline (seeded layout, scroll ×0.15) whose LEDs glow steadily with only a slow 5 to 9 s brightness drift (hard blinking made the skyline look like it dropped in and out on the owner's phone); dim unpulsed token chips (×0.45) with a slow bob; sparse dust (×0.7); circuit-trace ground (×1). All layers derive from the renderer's scroll distance, so pause and reduced motion freeze them. A browser test checks the upper world stays dark enough for the stacks to read.
 - **Stacks (1.1.0).** Spacing 128 to 184 per stack, gap height jitter −6..+14 over the score ramp with an absolute floor of 78, gap-centre moves between 24 and 0.6 × spacing that flip direction after two moves the same way and reflect off the bounds instead of clamping. Reachability is still a unit test over the config, plus a statistical variety test.
 - **Touch layout:** chips (pause, help, sound) in a row under the screen, never over the play surface; short landscape puts them in a column to the left of the screen. The screen is `aspect-ratio: 3/4`, sized from `--vh - --chrome` with a `--board-min` floor; short screens scroll naturally.
@@ -110,6 +110,7 @@ node scripts/audit-help.mjs            # help dialog fit across 6 viewports
 | `v1.0.0` / `deployed-v1.0.0` | first public release (2026-10-20) |
 | `v1.0.1` / `deployed-v1.0.1` | no double-tap zoom on any element (owner found it on a phone) |
 | `v1.1.0` / `deployed-v1.1.0` | varied stacks, data-centre-at-dusk backdrop with sky phases, zoom fully disabled |
+| `v1.1.1` / `deployed-v1.1.1` | iPhone Safari still zoomed in fast two-thumb bursts: every touchend cancelled, clicks synthesised |
 
 ## Verified on physical devices
 

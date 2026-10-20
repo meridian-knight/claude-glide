@@ -2,7 +2,13 @@
  * Keyboard and pointer input. One rule keeps taps from double-firing: the
  * flap surface listens to `pointerdown` only (never click, touchstart or
  * mousedown), so a touch's synthesised mouse events are simply not heard.
- * Utility buttons are ordinary click handlers outside the surface.
+ *
+ * Zoom is disabled on this page at the owner's request. iOS Safari zooms on a
+ * double tap and, in fast two-thumb bursts, ignored `touch-action` and a
+ * distance-based guard. So every `touchend` on the page is cancelled (the
+ * technique FastClick used), which removes Safari's double-tap zoom and its
+ * native synthesised click; taps on buttons and other click targets get a
+ * synthesised click here instead. Links keep their native behaviour.
  */
 export interface InputHandlers {
   /** Space / ArrowUp / W, or a pointer down on the play surface. */
@@ -22,9 +28,19 @@ export interface InputHandlers {
 const FLAP_CODES = new Set(['Space', 'ArrowUp', 'KeyW']);
 const PAUSE_CODES = new Set(['KeyP']);
 const ENTER_CODES = new Set(['Enter', 'NumpadEnter']);
-/** Two taps closer than this in time and space are a zoom gesture, never two actions. */
-const DOUBLE_TAP_MS = 350;
-const DOUBLE_TAP_PX = 40;
+/** A touch that moves less than this (CSS px) between start and end is a tap. */
+export const TAP_SLOP_PX = 10;
+
+export interface TouchPoint {
+  x: number;
+  y: number;
+}
+
+/** True when a touch ended close to where it started (a tap, not a drag). */
+export function isTap(start: TouchPoint | undefined, end: TouchPoint, slop = TAP_SLOP_PX): boolean {
+  if (!start) return false;
+  return Math.hypot(end.x - start.x, end.y - start.y) < slop;
+}
 
 export function bindInput(
   handlers: InputHandlers,
@@ -85,34 +101,53 @@ export function bindInput(
   // Safari grants user activation for audio on pointerup/touchend rather than
   // pointerdown, so unlock again on the way up too.
   window.addEventListener('pointerup', () => handlers.onGesture(), { passive: true });
-  // Zoom is disabled on this page at the owner's request. touch-action and the
-  // viewport meta cover most engines; for WebKit a second tap within
-  // DOUBLE_TAP_MS anywhere but a link is cancelled here (a fast second tap on a
-  // chip is a zoom gesture, not a second click), and pinch gestures are cancelled.
-  // Flaps come from pointerdown, so nothing is lost.
-  let lastTapEnd = Number.NEGATIVE_INFINITY;
-  let lastTapX = 0;
-  let lastTapY = 0;
-  window.addEventListener(
+
+  // Touch: cancel every touchend (no double-tap zoom, no native click) and
+  // synthesise the click for taps ourselves. Links are left native.
+  const starts = new Map<number, TouchPoint>();
+  const pressedOf = (target: EventTarget | null): HTMLElement | null =>
+    target instanceof Element ? target.closest<HTMLElement>('button, .action') : null;
+  document.addEventListener(
+    'touchstart',
+    (e) => {
+      for (const t of Array.from(e.changedTouches)) starts.set(t.identifier, { x: t.clientX, y: t.clientY });
+      const pressed = pressedOf(e.target);
+      if (pressed && !(pressed as HTMLButtonElement).disabled) pressed.dataset.pressed = '';
+    },
+    { passive: true },
+  );
+  document.addEventListener(
     'touchend',
     (e) => {
       handlers.onGesture();
-      const now = performance.now();
-      const touch = e.changedTouches[0];
-      const x = touch?.clientX ?? 0;
-      const y = touch?.clientY ?? 0;
       const target = e.target instanceof Element ? e.target : null;
-      // Same spot, fast: a double-tap zoom. A flap followed by a tap on a chip is not.
-      const near = Math.hypot(x - lastTapX, y - lastTapY) < DOUBLE_TAP_PX;
-      if (now - lastTapEnd < DOUBLE_TAP_MS && near && e.touches.length === 0 && !target?.closest('a') && e.cancelable) {
-        e.preventDefault();
+      pressedOf(target)?.removeAttribute('data-pressed');
+      if (target?.closest('a')) return;
+      if (e.cancelable) e.preventDefault();
+      for (const t of Array.from(e.changedTouches)) {
+        const start = starts.get(t.identifier);
+        starts.delete(t.identifier);
+        if (!target || !isTap(start, { x: t.clientX, y: t.clientY })) continue;
+        const button = target.closest<HTMLButtonElement>('button');
+        if (button) {
+          if (!button.disabled) button.click();
+        } else {
+          // Non-button click targets (e.g. the help dialog's backdrop) still get their click.
+          target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        }
       }
-      lastTapEnd = now;
-      lastTapX = x;
-      lastTapY = y;
     },
     { passive: false },
   );
+  document.addEventListener(
+    'touchcancel',
+    (e) => {
+      for (const t of Array.from(e.changedTouches)) starts.delete(t.identifier);
+      pressedOf(e.target)?.removeAttribute('data-pressed');
+    },
+    { passive: true },
+  );
+  // Pinch (WebKit gesture events; other engines never fire them).
   for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
     document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
   }

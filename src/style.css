@@ -229,7 +229,8 @@ button {
   color: var(--muted);
 }
 
-.chip:active {
+.chip:active,
+.chip[data-pressed] {
   transform: translateY(1px);
   box-shadow: 0 1px 0 var(--bezel-dark);
 }
@@ -450,7 +451,8 @@ button {
   touch-action: manipulation;
 }
 
-.action:active {
+.action:active,
+.action[data-pressed] {
   transform: translateY(2px);
   box-shadow: 0 1px 0 var(--orange-deep);
 }
@@ -659,7 +661,8 @@ button {
   box-shadow: 0 4px 0 var(--bezel-dark);
 }
 
-.deck .chip:active {
+.deck .chip:active,
+.deck .chip[data-pressed] {
   transform: translateY(3px);
   box-shadow: 0 1px 0 var(--bezel-dark);
 }
@@ -943,8 +946,11 @@ body[data-layout="touch"] .action {
     animation: none;
   }
   .action:active,
+  .action[data-pressed],
   .chip:active,
-  .deck .chip:active {
+  .chip[data-pressed],
+  .deck .chip:active,
+  .deck .chip[data-pressed] {
     transform: none;
   }
   .mascot[data-mode="over"] {

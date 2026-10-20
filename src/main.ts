@@ -268,11 +268,25 @@ if (debugOverlay) {
   debugOverlay.setAttribute('aria-hidden', 'true');
   screen.appendChild(debugOverlay);
 }
+let lastTouch = { label: 'none', at: Number.NEGATIVE_INFINITY };
+if (debugOverlay) {
+  document.addEventListener(
+    'touchend',
+    (e) => {
+      const t = e.target instanceof Element ? e.target : null;
+      lastTouch = { label: t ? `${t.tagName.toLowerCase()}${t.id ? '#' + t.id : ''}${t.classList[0] ? '.' + t.classList[0] : ''}` : 'none', at: performance.now() };
+      updateDebugOverlay();
+    },
+    { passive: true },
+  );
+}
 function updateDebugOverlay(): void {
   if (!debugOverlay) return;
   const m = renderer.boardMetrics();
   const { w, h } = screenContentBox();
   debugOverlay.textContent = [
+    `vv scale ${(window.visualViewport?.scale ?? 1).toFixed(3)}`,
+    `last touch ${lastTouch.label} ${Number.isFinite(lastTouch.at) ? Math.round(performance.now() - lastTouch.at) + 'ms ago' : ''}`,
     `ua ${/CriOS/.test(navigator.userAgent) ? 'Chrome iOS' : /Safari/.test(navigator.userAgent) ? 'Safari/WebKit' : 'other'}`,
     `viewport ${window.innerWidth}x${window.innerHeight} dpr ${m.dpr}`,
     `content ${w.toFixed(1)}x${h.toFixed(1)}`,
