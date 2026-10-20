@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { agentGrid, PALETTE, SPRITE_PX } from '../../src/art/agent-grid';
+import { TOKEN_PALETTE, tokenGrid } from '../../src/art/token-grid';
 import { pixelEdges } from '../../src/ui/sprites';
 
 describe('pixelEdges', () => {
@@ -38,6 +39,19 @@ describe('agentGrid', () => {
         }
       }
     }
+  });
+
+  it('token chip is a 12×12 grid of palette keys with a brighter pulse frame', () => {
+    for (const frame of [0, 1] as const) {
+      const g = tokenGrid(frame);
+      expect(g).toHaveLength(SPRITE_PX);
+      for (const row of g) {
+        expect(row).toHaveLength(SPRITE_PX);
+        for (const key of row) expect(key === '.' || key in TOKEN_PALETTE).toBe(true);
+      }
+    }
+    expect(tokenGrid(0)[5]![5]).toBe('K');
+    expect(tokenGrid(1)[5]![5]).toBe('y');
   });
 
   it('moves the wings between frames and keeps the face in place', () => {

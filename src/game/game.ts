@@ -23,6 +23,7 @@ export function createGame(): GameState {
     armed: false,
     tick: 0,
     cause: null,
+    lastDeltas: [],
   };
 }
 
@@ -64,22 +65,50 @@ export function overlaps(a: Box, b: Box): boolean {
   return a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
 }
 
-function spawnObstacle(prev: Obstacle | null, id: number, score: number, rng: Rng): Obstacle {
-  const gapH = gapHeightAt(score);
+/** The first stack: fixed distance, gap close to the agent's start height, no jitter. */
+function firstStack(id: number, rng: Rng): Obstacle {
+  const gapH = gapHeightAt(0);
   const { min, max } = gapBounds(gapH);
-  const centre = prev ? prev.gapY : C.AGENT_START_Y;
-  const delta = prev ? C.MAX_GAP_DELTA : C.FIRST_GAP_DELTA;
-  const gapY = clamp(centre + (rng() * 2 - 1) * delta, min, max);
-  const x = prev ? prev.x + C.OB_SPACING : C.FIRST_OB_X;
-  return { id, x, gapY, gapH, passed: false };
+  const gapY = clamp(C.AGENT_START_Y + (rng() * 2 - 1) * C.FIRST_GAP_DELTA, min, max);
+  return { id, x: C.FIRST_OB_X, gapY, gapH, passed: false };
+}
+
+/**
+ * The stack after `prev`. Spacing, gap height and the size of the gap-centre
+ * move are all drawn per stack; the move is never smaller than MIN_GAP_DELTA,
+ * never larger than GAP_REACH × spacing (so it stays reachable), flips
+ * direction after two moves the same way, and reflects off the top and bottom
+ * bounds instead of flattening against them.
+ */
+export function nextStack(
+  prev: Obstacle,
+  lastDeltas: readonly number[],
+  id: number,
+  score: number,
+  rng: Rng,
+): { obstacle: Obstacle; delta: number } {
+  const spacing = C.OB_SPACING_MIN + rng() * (C.OB_SPACING_MAX - C.OB_SPACING_MIN);
+  const gapH = Math.max(C.GAP_H_FLOOR, gapHeightAt(score) + C.GAP_JITTER_MIN + rng() * (C.GAP_JITTER_MAX - C.GAP_JITTER_MIN));
+  const magnitude = C.MIN_GAP_DELTA + rng() * (C.GAP_REACH * spacing - C.MIN_GAP_DELTA);
+  let sign = rng() < 0.5 ? -1 : 1;
+  if (lastDeltas.length >= 2) {
+    const a = Math.sign(lastDeltas[lastDeltas.length - 2]!);
+    const b = Math.sign(lastDeltas[lastDeltas.length - 1]!);
+    if (a !== 0 && a === b && rng() < C.GAP_SAME_DIR_FLIP) sign = -a;
+  }
+  const { min, max } = gapBounds(gapH);
+  let gapY = prev.gapY + sign * magnitude;
+  if (gapY < min || gapY > max) gapY = prev.gapY - sign * magnitude;
+  gapY = clamp(gapY, min, max);
+  return { obstacle: { id, x: prev.x + spacing, gapY, gapH, passed: false }, delta: gapY - prev.gapY };
 }
 
 /** idle → running (hovering until the first flap), with the first stack waiting off-screen. */
 export function startGame(state: GameState, rng: Rng = defaultRng): StepResult {
   if (state.status !== 'idle') return none(state);
-  const first = spawnObstacle(null, state.nextId, 0, rng);
+  const first = firstStack(state.nextId, rng);
   return {
-    state: { ...state, status: 'running', armed: false, obstacles: [first], nextId: state.nextId + 1 },
+    state: { ...state, status: 'running', armed: false, obstacles: [first], nextId: state.nextId + 1, lastDeltas: [] },
     events: ['started'],
   };
 }
@@ -134,12 +163,20 @@ export function step(state: GameState, rng: Rng = defaultRng): StepResult {
     obstacles.push({ ...ob, x, passed });
   }
 
-  // Keep one stack waiting beyond the right edge, spaced exactly from the previous one.
+  // Keep one stack waiting beyond the right edge, spaced from the previous one.
   let nextId = state.nextId;
+  let lastDeltas = state.lastDeltas;
   let guard = 0;
   while (!obstacles.some((o) => o.x >= C.WORLD_W) && guard++ < 8) {
     const last = obstacles.length > 0 ? obstacles[obstacles.length - 1]! : null;
-    obstacles.push(spawnObstacle(last, nextId++, score, rng));
+    if (last) {
+      const { obstacle, delta } = nextStack(last, lastDeltas, nextId++, score, rng);
+      obstacles.push(obstacle);
+      lastDeltas = [...lastDeltas.slice(-1), delta];
+    } else {
+      obstacles.push(firstStack(nextId++, rng));
+      lastDeltas = [];
+    }
     events.push('spawned');
   }
 
@@ -170,6 +207,7 @@ export function step(state: GameState, rng: Rng = defaultRng): StepResult {
       tick: state.tick + 1,
       status: cause ? 'over' : 'running',
       cause,
+      lastDeltas,
     },
     events,
   };

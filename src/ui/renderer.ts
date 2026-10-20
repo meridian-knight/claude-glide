@@ -1,17 +1,14 @@
 import * as C from '../game/config';
 import { agentBox, obstacleBoxes, speedAt } from '../game/game';
 import type { GameState, Obstacle } from '../game/types';
+import { Backdrop, type BackdropTheme } from './backdrop';
 import { fitWorld, type WorldFit } from './sizing';
 import { agentSprite, type Face, type Gaze, type Wing } from './sprites';
-import { CHOMP_MS, FLAP_WING_MS, SCORE_FLOAT_MS, SHAKE_MS, type VisualState } from './visual';
+import { CHOMP_MS, FLAP_WING_MS, MILESTONE_FLOAT_MS, SCORE_FLOAT_MS, SHAKE_MS, type VisualState } from './visual';
 
 const COLOURS = {
   well: '#120e0b',
   screen: '#1c1712',
-  dots: '#26201a',
-  ground: '#241c16',
-  groundLine: '#9a4f36',
-  groundDash: '#3a2d23',
   blockEdge: '#9a4f36',
   blockHot: '#d97757',
   blockFill: '#f3e6cf',
@@ -20,6 +17,7 @@ const COLOURS = {
   spark: '#f7c948',
   hotBand: '#f4a97a',
   text: '#f3e6cf',
+  milestone: '#f4a97a',
   debugAgent: '#7cfc00',
   debugObstacle: '#ff5252',
   debugGap: 'rgba(124, 252, 0, 0.12)',
@@ -33,9 +31,6 @@ const BLINK_TICKS = 12;
 const VIGNETTE_IDLE = 0.5;
 const VIGNETTE_PLAY = 0.3;
 const VIGNETTE_FADE_MS = 300;
-const DOT_STEP_X = 48;
-const DOT_STEP_Y = 40;
-const PARALLAX = 0.3;
 
 export class Renderer {
   private readonly ctx: CanvasRenderingContext2D;
@@ -43,6 +38,7 @@ export class Renderer {
   private dpr = 1;
   private readonly cache = new Map<string, HTMLCanvasElement>();
   private vignette: HTMLCanvasElement | null = null;
+  private readonly backdrop: Backdrop;
   /** Background scroll in world units (render-only; drives the parallax). */
   private scrollX = 0;
   private lastDrawAt = -1;
@@ -52,12 +48,18 @@ export class Renderer {
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly debug = false,
+    theme: BackdropTheme = 'dusk',
   ) {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas 2D context unavailable');
     this.ctx = ctx;
+    this.backdrop = new Backdrop(theme, C.WORLD_W, C.WORLD_H, C.GROUND_Y);
     this.fit = fitWorld(canvas.clientWidth || 300, canvas.clientHeight || 400, 1, C.WORLD_W, C.WORLD_H);
     this.resize(canvas.clientWidth || 300, canvas.clientHeight || 400);
+  }
+
+  get theme(): BackdropTheme {
+    return this.backdrop.theme;
   }
 
   /**
@@ -76,6 +78,7 @@ export class Renderer {
     this.canvas.style.height = `${this.fit.cssH}px`;
     this.cache.clear();
     this.vignette = this.buildVignette();
+    this.backdrop.resize(this.fit);
   }
 
   /** Sizing facts for tests and the ?debug overlay. */
@@ -200,7 +203,7 @@ export class Renderer {
       ctx.translate(Math.round(Math.sin(now * 0.09) * amp), Math.round(Math.cos(now * 0.13) * amp));
     }
 
-    // Letterbox bars read as bezel; the world itself is the LCD colour.
+    // Letterbox bars read as bezel; the world itself starts with the sky.
     ctx.fillStyle = COLOURS.well;
     ctx.fillRect(-4, -4, this.canvas.width + 8, this.canvas.height + 8);
     ctx.save();
@@ -209,25 +212,15 @@ export class Renderer {
     ctx.clip();
     this.rect(0, 0, C.WORLD_W, C.WORLD_H, COLOURS.screen);
 
-    // Parallax dots: a slow grid of faint dashes drifting left.
-    const dotShift = (this.scrollX * PARALLAX) % DOT_STEP_X;
-    for (let row = 0; row * DOT_STEP_Y < C.GROUND_Y; row++) {
-      const y = row * DOT_STEP_Y + 12;
-      const stagger = row % 2 === 0 ? 0 : DOT_STEP_X / 2;
-      for (let col = -1; col * DOT_STEP_X < C.WORLD_W + DOT_STEP_X; col++) {
-        this.rect(col * DOT_STEP_X + stagger - dotShift, y, 6, 2, COLOURS.dots);
-      }
-    }
+    // Backdrop layers, far to near.
+    this.backdrop.drawSky(ctx, visual.phase, visual.prevPhase, visual.phaseBlend(now));
+    this.backdrop.drawSkyline(ctx, this.scrollX, now, reduced);
+    this.backdrop.drawTokens(ctx, this.scrollX, now, reduced);
+    this.backdrop.drawDust(ctx, this.scrollX);
 
     for (const ob of state.obstacles) this.drawStack(ob);
 
-    // Ground band with scrolling dashes.
-    this.rect(0, C.GROUND_Y, C.WORLD_W, C.WORLD_H - C.GROUND_Y, COLOURS.ground);
-    this.rect(0, C.GROUND_Y, C.WORLD_W, 2, COLOURS.groundLine);
-    const dashShift = this.scrollX % 24;
-    for (let x = -24; x < C.WORLD_W + 24; x += 24) {
-      this.rect(x - dashShift, C.GROUND_Y + 9, 12, 2, COLOURS.groundDash);
-    }
+    this.backdrop.drawGround(ctx, this.scrollX);
 
     // Agent.
     const agent = state.agent;
@@ -244,15 +237,17 @@ export class Renderer {
       }
     } else {
       if (!state.armed) {
-        if (!reduced) ay += Math.sin((state.tick / C.STEP_HZ) * Math.PI * 2 * C.HOVER_BOB_HZ) * C.HOVER_BOB_AMP;
-        wing = Math.floor(now / 300) % 2 === 0 ? 0 : 1;
+        if (!reduced) {
+          ay += Math.sin((state.tick / C.STEP_HZ) * Math.PI * 2 * C.HOVER_BOB_HZ) * C.HOVER_BOB_AMP;
+          wing = Math.floor(now / 300) % 2 === 0 ? 0 : 1;
+        }
       } else {
         if (agent.vy < -60) gaze = 'up';
         else if (agent.vy > 150) gaze = 'down';
         if (now - visual.flappedAt < FLAP_WING_MS) wing = 1;
       }
       if (now - visual.scoredAt < CHOMP_MS) face = 'chomp';
-      else if (state.tick % BLINK_PERIOD < BLINK_TICKS && state.tick > BLINK_TICKS) face = 'blink';
+      else if (!reduced && state.tick % BLINK_PERIOD < BLINK_TICKS && state.tick > BLINK_TICKS) face = 'blink';
     }
     const pixel = 2 * f.scale; // sprite pixels are 2 world units
     const sprite = this.sprite(`agent:${wing}:${face}:${gaze}:${f.backingW}x${f.backingH}`, () =>
@@ -263,16 +258,19 @@ export class Renderer {
     ctx.drawImage(sprite, sx, sy);
     this.lastAgentCss = { x: sx / this.dpr, y: sy / this.dpr, size: sprite.width / this.dpr };
 
-    // "+1" float after scoring.
+    // "+1" float after scoring; "10!" on every tenth point.
+    const sinceMilestone = now - visual.milestoneAt;
     const sinceScore = now - visual.scoredAt;
-    if (sinceScore >= 0 && sinceScore < SCORE_FLOAT_MS) {
-      const k = sinceScore / SCORE_FLOAT_MS;
+    const milestone = sinceMilestone >= 0 && sinceMilestone < MILESTONE_FLOAT_MS;
+    if (milestone || (sinceScore >= 0 && sinceScore < SCORE_FLOAT_MS)) {
+      const k = milestone ? sinceMilestone / MILESTONE_FLOAT_MS : sinceScore / SCORE_FLOAT_MS;
       ctx.globalAlpha = 1 - k;
-      ctx.fillStyle = COLOURS.text;
-      ctx.font = `700 ${Math.max(8, Math.round(9 * f.scale))}px ui-monospace, "SF Mono", Menlo, Consolas, monospace`;
+      ctx.fillStyle = milestone ? COLOURS.milestone : COLOURS.text;
+      const size = Math.max(8, Math.round((milestone ? 13 : 9) * f.scale));
+      ctx.font = `700 ${size}px ui-monospace, "SF Mono", Menlo, Consolas, monospace`;
       ctx.textBaseline = 'bottom';
-      const rise = reduced ? 0 : k * 18;
-      ctx.fillText('+1', this.X(agent.x + C.AGENT_W / 2 + 2), this.Y(agent.y - C.AGENT_H / 2 - rise));
+      const rise = reduced ? 0 : k * (milestone ? 26 : 18);
+      ctx.fillText(milestone ? `${state.score}!` : '+1', this.X(agent.x + C.AGENT_W / 2 + 2), this.Y(agent.y - C.AGENT_H / 2 - rise));
       ctx.globalAlpha = 1;
     }
 

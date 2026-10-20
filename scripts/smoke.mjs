@@ -17,7 +17,10 @@ async function session(label, ctxOpts, touch) {
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('requestfailed', (r) => errors.push('failed: ' + r.url()));
   page.on('response', (r) => { if (r.status() >= 400) errors.push(`http ${r.status()} ${r.url()}`); });
-  await page.goto(BASE + '?test&seed=7', { waitUntil: 'load' });
+  const url = new URL(BASE);
+  url.searchParams.set('test', '');
+  url.searchParams.set('seed', '7');
+  await page.goto(url.toString(), { waitUntil: 'load' });
   await page.waitForTimeout(300);
   const g = () => page.evaluate(() => window.__glide.getState());
   const m = await page.evaluate(() => window.__glide.boardMetrics());

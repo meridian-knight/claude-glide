@@ -6,6 +6,7 @@ import {
   flap,
   gapBounds,
   gapHeightAt,
+  nextStack,
   obstacleBoxes,
   overlaps,
   restartGame,
@@ -225,13 +226,17 @@ describe('stacks', () => {
       for (let i = 1; i < s.obstacles.length; i++) {
         const a = s.obstacles[i - 1]!;
         const b = s.obstacles[i]!;
-        expect(b.x - a.x).toBeCloseTo(C.OB_SPACING, 6);
-        expect(Math.abs(b.gapY - a.gapY)).toBeLessThanOrEqual(C.MAX_GAP_DELTA + 1e-9);
+        const spacing = b.x - a.x;
+        expect(spacing).toBeGreaterThanOrEqual(C.OB_SPACING_MIN - 1e-9);
+        expect(spacing).toBeLessThanOrEqual(C.OB_SPACING_MAX + 1e-9);
+        expect(Math.abs(b.gapY - a.gapY)).toBeLessThanOrEqual(C.GAP_REACH * spacing + 1e-9);
       }
       for (const o of s.obstacles) {
         const { min, max } = gapBounds(o.gapH);
         expect(o.gapY).toBeGreaterThanOrEqual(min);
         expect(o.gapY).toBeLessThanOrEqual(max);
+        expect(o.gapH).toBeGreaterThanOrEqual(C.GAP_H_FLOOR);
+        expect(o.gapH).toBeLessThanOrEqual(C.GAP_H_START + C.GAP_JITTER_MAX);
         expect(o.x + C.OB_W).toBeGreaterThanOrEqual(0);
       }
     }
@@ -243,18 +248,76 @@ describe('stacks', () => {
   });
 
   it('config keeps consecutive gaps reachable at top speed (closed form)', () => {
-    const between = C.OB_SPACING / C.SPEED_MAX; // seconds between stacks
-    const period = 0.15; // a brisk but human flap rhythm
-    const climbPerFlap = -C.FLAP_VY * period - 0.5 * C.GRAVITY * period * period;
-    const climb = (between / period) * climbPerFlap;
-    expect(climbPerFlap).toBeGreaterThan(0);
-    expect(C.MAX_GAP_DELTA).toBeLessThanOrEqual(0.7 * climb);
-    // Falling covers at least as much.
-    const tCap = C.MAX_FALL_VY / C.GRAVITY;
-    const fall = tCap >= between ? 0.5 * C.GRAVITY * between * between : 0.5 * C.GRAVITY * tCap * tCap + C.MAX_FALL_VY * (between - tCap);
-    expect(C.MAX_GAP_DELTA).toBeLessThanOrEqual(0.7 * fall);
-    // Even the widest gap leaves the agent's hitbox room on both sides.
-    expect(C.GAP_H_MIN).toBeGreaterThan(C.AGENT_H - 2 * C.HITBOX_INSET + 24);
+    // The largest move scales with the spacing and so does the time to make it,
+    // so the shortest spacing is the binding case for every spacing.
+    for (const spacing of [C.OB_SPACING_MIN, C.OB_SPACING_MAX]) {
+      const between = spacing / C.SPEED_MAX; // seconds between stacks
+      const maxDelta = C.GAP_REACH * spacing;
+      const period = 0.15; // a brisk but human flap rhythm
+      const climbPerFlap = -C.FLAP_VY * period - 0.5 * C.GRAVITY * period * period;
+      const climb = (between / period) * climbPerFlap;
+      expect(climbPerFlap).toBeGreaterThan(0);
+      expect(maxDelta).toBeLessThanOrEqual(0.7 * climb);
+      // Falling covers at least as much.
+      const tCap = C.MAX_FALL_VY / C.GRAVITY;
+      const fall = tCap >= between ? 0.5 * C.GRAVITY * between * between : 0.5 * C.GRAVITY * tCap * tCap + C.MAX_FALL_VY * (between - tCap);
+      expect(maxDelta).toBeLessThanOrEqual(0.7 * fall);
+    }
+    expect(C.MIN_GAP_DELTA).toBeLessThan(C.GAP_REACH * C.OB_SPACING_MIN);
+    // Even the narrowest gap leaves the agent's hitbox room on both sides.
+    expect(C.GAP_H_FLOOR).toBeGreaterThan(C.AGENT_H - 2 * C.HITBOX_INSET + 24);
+    expect(C.GAP_H_MIN + C.GAP_JITTER_MIN).toBeGreaterThanOrEqual(C.GAP_H_FLOOR);
+  });
+
+  it('varies spacing, gap height and direction over a long sequence', () => {
+    const rng = seededRng(11);
+    let prev = startGame(createGame(), rng).state.obstacles[0]!;
+    let lastDeltas: number[] = [];
+    const deltas: number[] = [];
+    const centres: number[] = [];
+    const spacings = new Set<string>();
+    const heights = new Set<string>();
+    for (let i = 0; i < 300; i++) {
+      const score = Math.min(40, Math.floor(i / 3));
+      const { obstacle, delta } = nextStack(prev, lastDeltas, i + 2, score, rng);
+      const spacing = obstacle.x - prev.x;
+      expect(spacing).toBeGreaterThanOrEqual(C.OB_SPACING_MIN);
+      expect(spacing).toBeLessThanOrEqual(C.OB_SPACING_MAX);
+      expect(Math.abs(delta)).toBeLessThanOrEqual(C.GAP_REACH * spacing + 1e-9);
+      const { min, max } = gapBounds(obstacle.gapH);
+      // Moves are at least MIN_GAP_DELTA unless the bounds forced a clamp.
+      const nearEdge = prev.gapY - min < C.MIN_GAP_DELTA || max - prev.gapY < C.MIN_GAP_DELTA;
+      if (!nearEdge) expect(Math.abs(delta)).toBeGreaterThanOrEqual(C.MIN_GAP_DELTA - 1e-9);
+      const base = gapHeightAt(score);
+      expect(obstacle.gapH).toBeGreaterThanOrEqual(Math.max(C.GAP_H_FLOOR, base + C.GAP_JITTER_MIN) - 1e-9);
+      expect(obstacle.gapH).toBeLessThanOrEqual(base + C.GAP_JITTER_MAX + 1e-9);
+      deltas.push(delta);
+      centres.push(obstacle.gapY);
+      spacings.add(spacing.toFixed(3));
+      heights.add(obstacle.gapH.toFixed(2));
+      lastDeltas = [...lastDeltas.slice(-1), delta];
+      prev = obstacle;
+    }
+    // Direction changes often and never runs the same way for long.
+    let changes = 0;
+    let run = 1;
+    let longest = 1;
+    for (let i = 1; i < deltas.length; i++) {
+      if (Math.sign(deltas[i]!) !== Math.sign(deltas[i - 1]!)) {
+        changes++;
+        run = 1;
+      } else {
+        run++;
+        longest = Math.max(longest, run);
+      }
+    }
+    expect(changes).toBeGreaterThanOrEqual(60);
+    expect(longest).toBeLessThanOrEqual(6);
+    expect(spacings.size).toBeGreaterThanOrEqual(20);
+    expect(heights.size).toBeGreaterThanOrEqual(20);
+    const mean = centres.reduce((a, b) => a + b, 0) / centres.length;
+    const sd = Math.sqrt(centres.reduce((a, c) => a + (c - mean) ** 2, 0) / centres.length);
+    expect(sd).toBeGreaterThan(30);
   });
 
   it('ramps speed and gap height monotonically to their caps', () => {
@@ -304,6 +367,7 @@ describe('restart', () => {
     expect(state.tick).toBe(0);
     expect(state.cause).toBeNull();
     expect(state.obstacles).toHaveLength(1);
+    expect(state.lastDeltas).toEqual([]);
     expect(state.agent).toEqual({ x: C.AGENT_X, y: C.AGENT_START_Y, vy: 0 });
   });
 

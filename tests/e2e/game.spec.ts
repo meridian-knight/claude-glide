@@ -1,4 +1,5 @@
 import { expect, test as base, type Page } from '@playwright/test';
+import { decodePng } from './png';
 
 /**
  * Browser tests against the production build (see playwright.config.ts).
@@ -464,11 +465,25 @@ test.describe('mobile readiness', () => {
     expect(await page.evaluate(() => window.__glide!.lastVibrate())).toBe(isTouch() ? 15 : null);
   });
 
-  test('mobile readiness: reduced motion plays without errors', async ({ page }) => {
+  test('mobile readiness: reduced motion plays without errors and keeps the scene still', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload();
-    await startFlying(page);
-    await page.waitForTimeout(500);
+    await page.locator('#action-btn').click();
+    await expect.poll(() => status(page)).toBe('running');
+    // While hovering under reduced motion nothing in the backdrop moves or blinks:
+    // the right half of the upper world (clear of the agent and the prompt) is identical 400 ms apart.
+    const region = async (): Promise<number[]> => {
+      const img = decodePng(await page.locator('#board').screenshot());
+      const out: number[] = [];
+      for (let y = 0; y < img.height * 0.6; y += 3) for (let x = Math.floor(img.width * 0.55); x < img.width; x += 3) out.push(Math.round(img.lum(x, y)));
+      return out;
+    };
+    const a = await region();
+    await page.waitForTimeout(400);
+    const b = await region();
+    expect(b).toEqual(a);
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(300);
     await killNow(page);
     await expect(page.locator('#overlay')).toBeVisible();
     await expect(page.locator('#action-btn')).toBeEnabled({ timeout: 1500 });
@@ -483,6 +498,43 @@ test.describe('mobile readiness', () => {
     const stats = await page.evaluate(() => window.__glide!.frameStats());
     expect(stats.samples).toBeGreaterThan(60);
     expect(stats.avgMs).toBeLessThan(40);
+  });
+});
+
+test.describe('scene', () => {
+  test('backdrop stays dark enough for the stacks and agent to read', async ({ page }) => {
+    await page.locator('#action-btn').click();
+    await expect.poll(() => status(page)).toBe('running');
+    await page.evaluate(() => window.__glide!.setObstacles([{ id: 700, x: 120, gapY: 150, gapH: 100, passed: false }, { id: 701, x: 400, gapY: 140, gapH: 100, passed: false }]));
+    await page.waitForTimeout(150);
+    const m = await page.evaluate(() => window.__glide!.boardMetrics());
+    const img = decodePng(await page.locator('#board').screenshot());
+    // Map world units through CSS px to image px (the element shot may be a px wider than the backing).
+    const kx = img.width / m.box[0];
+    const ky = img.height / m.box[1];
+    const px = (wx: number, wy: number): [number, number] => [
+      Math.min(img.width - 1, Math.round(((m.letterbox[0] + wx * m.scale) / m.dpr) * kx)),
+      Math.min(img.height - 1, Math.round(((m.letterbox[1] + wy * m.scale) / m.dpr) * ky)),
+    ];
+    // Median luminance of the upper 60 % of the world, sampled, away from the stack and the agent.
+    const samples: number[] = [];
+    for (let wy = 2; wy < 190; wy += 4) {
+      for (let wx = 2; wx < 238; wx += 4) {
+        if (wx >= 118 && wx <= 162) continue; // the placed stack
+        if (wx >= 40 && wx <= 72 && wy >= 120 && wy <= 170) continue; // the agent
+        const [x, y] = px(wx, wy);
+        samples.push(img.lum(x, y));
+      }
+    }
+    samples.sort((a, b) => a - b);
+    expect(samples[samples.length >> 1]!).toBeLessThan(48);
+    // The stack's block fill is bright: plain fill inside the lowest block above the gap
+    // (away from the highlight, pins and spark); brightest of a small neighbourhood so a
+    // CSS scanline cannot dim the sample.
+    const [bx, by] = px(126, 100 - 7);
+    let brightest = 0;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) brightest = Math.max(brightest, img.lum(bx + dx, by + dy));
+    expect(brightest).toBeGreaterThan(170);
   });
 });
 

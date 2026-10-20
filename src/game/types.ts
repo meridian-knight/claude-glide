@@ -42,6 +42,8 @@ export interface GameState {
   /** Fixed steps since the run started (hover steps included). */
   readonly tick: number;
   readonly cause: Cause | null;
+  /** The last two gap-centre moves (sim bookkeeping for direction variety). */
+  readonly lastDeltas: readonly number[];
 }
 
 export type GameEvent =

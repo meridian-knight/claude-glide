@@ -33,18 +33,32 @@ export const MAX_FALL_VY = 420;
 
 // Obstacles ("stacks")
 export const OB_W = 40;
-/** Distance between the left edges of consecutive stacks. */
-export const OB_SPACING = 144;
+/** Distance between the left edges of consecutive stacks, drawn per stack. */
+export const OB_SPACING_MIN = 128;
+export const OB_SPACING_MAX = 184;
 /** Where the first stack waits when a run starts (reaches the agent after ≈2.5 s of flight). */
 export const FIRST_OB_X = WORLD_W + 60;
 export const GAP_H_START = 100;
-/** Floor for the gap: 3.5 agent heights, reached at 32 points. */
+/** Floor for the score-driven gap height: 3.5 agent heights, reached at 32 points. */
 export const GAP_H_MIN = 84;
 export const GAP_SHRINK_PER_POINT = 0.5;
+/** Per-stack jitter added to the gap height, so no two stacks feel the same. */
+export const GAP_JITTER_MIN = -6;
+export const GAP_JITTER_MAX = 14;
+/** Absolute floor for the gap after jitter. */
+export const GAP_H_FLOOR = 78;
 /** Smallest distance from a gap edge to the ceiling or the ground. */
 export const GAP_MARGIN = 24;
-/** Largest change of gap centre between consecutive stacks (keeps every gap reachable). */
-export const MAX_GAP_DELTA = 80;
+/** Smallest move of the gap centre between consecutive stacks (no flat runs). */
+export const MIN_GAP_DELTA = 24;
+/**
+ * Largest move of the gap centre as a fraction of the spacing to the stack: the
+ * time to reach it grows with the spacing, so the reach does too (77 at the
+ * shortest spacing, 110 at the longest). Reachability is a unit test over this.
+ */
+export const GAP_REACH = 0.6;
+/** After two moves in the same direction, the next one flips with this probability. */
+export const GAP_SAME_DIR_FLIP = 0.7;
 /** The first stack's gap stays close to the agent's start height. */
 export const FIRST_GAP_DELTA = 40;
 
