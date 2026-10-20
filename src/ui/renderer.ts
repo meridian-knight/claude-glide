@@ -1,7 +1,7 @@
 import * as C from '../game/config';
 import { agentBox, obstacleBoxes, speedAt } from '../game/game';
 import type { GameState, Obstacle } from '../game/types';
-import { Backdrop, type BackdropTheme } from './backdrop';
+import { Backdrop } from './backdrop';
 import { fitWorld, type WorldFit } from './sizing';
 import { agentSprite, type Face, type Gaze, type Wing } from './sprites';
 import { CHOMP_MS, FLAP_WING_MS, MILESTONE_FLOAT_MS, SCORE_FLOAT_MS, SHAKE_MS, type VisualState } from './visual';
@@ -48,18 +48,13 @@ export class Renderer {
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly debug = false,
-    theme: BackdropTheme = 'dusk',
   ) {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas 2D context unavailable');
     this.ctx = ctx;
-    this.backdrop = new Backdrop(theme, C.WORLD_W, C.WORLD_H, C.GROUND_Y);
+    this.backdrop = new Backdrop(C.WORLD_W, C.WORLD_H, C.GROUND_Y);
     this.fit = fitWorld(canvas.clientWidth || 300, canvas.clientHeight || 400, 1, C.WORLD_W, C.WORLD_H);
     this.resize(canvas.clientWidth || 300, canvas.clientHeight || 400);
-  }
-
-  get theme(): BackdropTheme {
-    return this.backdrop.theme;
   }
 
   /**
@@ -215,7 +210,7 @@ export class Renderer {
     // Backdrop layers, far to near.
     this.backdrop.drawSky(ctx, visual.phase, visual.prevPhase, visual.phaseBlend(now));
     this.backdrop.drawSkyline(ctx, this.scrollX, now, reduced);
-    this.backdrop.drawTokens(ctx, this.scrollX, now, reduced);
+    this.backdrop.drawTokens(ctx, this.scrollX, reduced);
     this.backdrop.drawDust(ctx, this.scrollX);
 
     for (const ob of state.obstacles) this.drawStack(ob);

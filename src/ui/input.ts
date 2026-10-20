@@ -22,8 +22,9 @@ export interface InputHandlers {
 const FLAP_CODES = new Set(['Space', 'ArrowUp', 'KeyW']);
 const PAUSE_CODES = new Set(['KeyP']);
 const ENTER_CODES = new Set(['Enter', 'NumpadEnter']);
-/** Two taps closer than this are a flap burst, never a zoom gesture. */
+/** Two taps closer than this in time and space are a zoom gesture, never two actions. */
 const DOUBLE_TAP_MS = 350;
+const DOUBLE_TAP_PX = 40;
 
 export function bindInput(
   handlers: InputHandlers,
@@ -84,23 +85,37 @@ export function bindInput(
   // Safari grants user activation for audio on pointerup/touchend rather than
   // pointerdown, so unlock again on the way up too.
   window.addEventListener('pointerup', () => handlers.onGesture(), { passive: true });
-  // Older WebKit ignores touch-action for double-tap zoom: a second tap within
-  // DOUBLE_TAP_MS anywhere but a button or link is cancelled here instead.
-  // Flaps come from pointerdown, so nothing is lost; buttons keep their clicks.
+  // Zoom is disabled on this page at the owner's request. touch-action and the
+  // viewport meta cover most engines; for WebKit a second tap within
+  // DOUBLE_TAP_MS anywhere but a link is cancelled here (a fast second tap on a
+  // chip is a zoom gesture, not a second click), and pinch gestures are cancelled.
+  // Flaps come from pointerdown, so nothing is lost.
   let lastTapEnd = Number.NEGATIVE_INFINITY;
+  let lastTapX = 0;
+  let lastTapY = 0;
   window.addEventListener(
     'touchend',
     (e) => {
       handlers.onGesture();
       const now = performance.now();
+      const touch = e.changedTouches[0];
+      const x = touch?.clientX ?? 0;
+      const y = touch?.clientY ?? 0;
       const target = e.target instanceof Element ? e.target : null;
-      if (now - lastTapEnd < DOUBLE_TAP_MS && e.touches.length === 0 && !target?.closest('button, a') && e.cancelable) {
+      // Same spot, fast: a double-tap zoom. A flap followed by a tap on a chip is not.
+      const near = Math.hypot(x - lastTapX, y - lastTapY) < DOUBLE_TAP_PX;
+      if (now - lastTapEnd < DOUBLE_TAP_MS && near && e.touches.length === 0 && !target?.closest('a') && e.cancelable) {
         e.preventDefault();
       }
       lastTapEnd = now;
+      lastTapX = x;
+      lastTapY = y;
     },
     { passive: false },
   );
+  for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+  }
 
   elements.action.addEventListener('click', () => {
     if (handlers.isBlocked()) return;

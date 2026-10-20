@@ -33,14 +33,14 @@
 2. **Fly through the gap in every stack** to score a point.
 3. **Avoid the stacks and the ground.** One touch ends the run.
 
-Press Start, then the first flap begins the run. The stacks speed up a little and the gaps tighten a little as your score grows, up to a cap. Your best score and the sound setting are remembered in your browser only.
+Press Start, then the first flap begins the run. The stacks speed up a little and the gaps tighten a little as your score grows, up to a cap, and every stack differs in spacing, gap and height. The sky over the data centre shifts every 10 points. Your best score and the sound setting are remembered in your browser only.
 
 | | Flap | Pause / Resume | Start / Restart | Help |
 |---|---|---|---|---|
 | **Desktop** | Space, ↑ or W (or click the screen) | P | Enter | `?` button |
 | **Touch** | Tap anywhere on the screen | Pause button (below the screen) | Tap Start / Restart | Help button (below the screen) |
 
-Sound starts after your first tap or key press. On iPhone the ring/silent switch also applies. Short vibration feedback plays on scoring and on game over on phones whose browser supports it (Android Chrome); iOS has no vibration API, so nothing is promised there. Opening help pauses a run; backgrounding the page pauses too, and resuming is always your choice.
+The page disables browser zoom (double tap and pinch) so fast taps never zoom the game. Sound starts after your first tap or key press. On iPhone the ring/silent switch also applies. Short vibration feedback plays on scoring and on game over on phones whose browser supports it (Android Chrome); iOS has no vibration API, so nothing is promised there. Opening help pauses a run; backgrounding the page pauses too, and resuming is always your choice.
 
 ## Under the hood
 

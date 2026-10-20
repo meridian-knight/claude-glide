@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { GROUND_Y } from '../../src/game/config';
-import { buildSkyline, buildSparks, buildTokens, SKY_PHASES, skyPhaseAt, SKYLINE_TILE_W, TOKENS_TILE_W } from '../../src/ui/backdrop';
+import {
+  buildSkyline,
+  buildTokens,
+  LED_MAX,
+  LED_MIN,
+  LED_PERIOD_MAX,
+  LED_PERIOD_MIN,
+  ledLevel,
+  SKY_PHASES,
+  skyPhaseAt,
+  SKYLINE_TILE_W,
+  TOKENS_TILE_W,
+} from '../../src/ui/backdrop';
 
 describe('buildSkyline', () => {
   it('is deterministic for a seed and differs between seeds', () => {
@@ -29,33 +41,43 @@ describe('buildSkyline', () => {
         expect(led.x + 2).toBeLessThanOrEqual(r.w);
         expect(led.y).toBeGreaterThanOrEqual(1);
         expect(led.y + 2).toBeLessThanOrEqual(r.h);
-        expect(led.period).toBeGreaterThanOrEqual(1.8);
-        expect(led.period).toBeLessThanOrEqual(3.2);
+        expect(led.period).toBeGreaterThanOrEqual(LED_PERIOD_MIN);
+        expect(led.period).toBeLessThanOrEqual(LED_PERIOD_MAX);
       }
     }
   });
 });
 
-describe('buildTokens / buildSparks', () => {
-  it('keeps tokens inside the tile and clear of the ground glow', () => {
-    for (const count of [4, 7]) {
-      const spots = buildTokens(3, count);
-      expect(spots).toHaveLength(count);
-      for (const t of spots) {
-        expect(t.x).toBeGreaterThanOrEqual(0);
-        expect(t.x).toBeLessThan(TOKENS_TILE_W);
-        expect(t.y).toBeGreaterThanOrEqual(30);
-        expect(t.y).toBeLessThanOrEqual(200);
-        expect(t.bob).toBeGreaterThanOrEqual(2);
-        expect(t.bob).toBeLessThanOrEqual(4);
+describe('ledLevel', () => {
+  it('glows steadily: always lit, never a step, constant under reduced motion', () => {
+    const racks = buildSkyline(7);
+    for (const led of racks.flatMap((r) => r.leds).slice(0, 12)) {
+      let prev = ledLevel(0, led);
+      for (let ms = 16; ms <= 20000; ms += 16) {
+        const level = ledLevel(ms, led);
+        expect(level).toBeGreaterThanOrEqual(LED_MIN);
+        expect(level).toBeLessThanOrEqual(LED_MAX);
+        expect(Math.abs(level - prev)).toBeLessThan(0.01);
+        prev = level;
       }
+      expect(ledLevel(1234, led, true)).toBe(ledLevel(9876, led, true));
+    }
+  });
+});
+
+describe('buildTokens', () => {
+  it('keeps tokens inside the tile and clear of the ground glow', () => {
+    const spots = buildTokens(3);
+    expect(spots).toHaveLength(7);
+    for (const t of spots) {
+      expect(t.x).toBeGreaterThanOrEqual(0);
+      expect(t.x).toBeLessThan(TOKENS_TILE_W);
+      expect(t.y).toBeGreaterThanOrEqual(30);
+      expect(t.y).toBeLessThanOrEqual(200);
+      expect(t.bob).toBeGreaterThanOrEqual(2);
+      expect(t.bob).toBeLessThanOrEqual(3);
     }
     expect(buildTokens(3)).toEqual(buildTokens(3));
-    for (const s of buildSparks(9)) {
-      expect(s.x).toBeGreaterThanOrEqual(0);
-      expect(s.x).toBeLessThan(TOKENS_TILE_W);
-      expect(s.y).toBeLessThan(GROUND_Y - 40);
-    }
   });
 });
 

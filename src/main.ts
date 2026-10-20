@@ -4,7 +4,6 @@ import { createGame, flap, restartGame, startGame, step, togglePause } from './g
 import { defaultRng, seededRng, type Rng } from './game/rng';
 import type { Agent, GameEvent, GameState, Obstacle, StepResult } from './game/types';
 import { GameAudio, type AudioState } from './ui/audio';
-import { THEMES, type BackdropTheme } from './ui/backdrop';
 import { Haptics, type VibratePattern } from './ui/haptics';
 import { HelpModal } from './ui/help';
 import { Hud } from './ui/hud';
@@ -28,7 +27,6 @@ declare global {
       setObstacles(obstacles: Obstacle[]): void;
       boardMetrics(): ReturnType<Renderer['boardMetrics']>;
       lastAgentCss(): Renderer['lastAgentCss'];
-      theme(): BackdropTheme;
       /** The last 64 events in order. */
       events(): GameEvent[];
       frameStats(): { avgMs: number; maxMs: number; samples: number };
@@ -56,10 +54,7 @@ bindLayout({
   mute: hud.muteButton,
 });
 const haptics = new Haptics();
-// Backdrop theme switch while the owner compares candidates (?backdrop=dusk|tokens|minimal).
-const themeParam = params.get('backdrop');
-const theme: BackdropTheme = THEMES.includes(themeParam as BackdropTheme) ? (themeParam as BackdropTheme) : 'dusk';
-const renderer = new Renderer(canvas, params.has('debug'), theme);
+const renderer = new Renderer(canvas, params.has('debug'));
 const audio = new GameAudio(loadMuted());
 const visual = new VisualState();
 const mascot = new Mascot(hud.mascot, () => visual.reducedMotion);
@@ -340,7 +335,6 @@ if (params.has('test')) {
     },
     boardMetrics: () => renderer.boardMetrics(),
     lastAgentCss: () => renderer.lastAgentCss,
-    theme: () => renderer.theme,
     events: () => recentEvents.slice(),
     frameStats() {
       const samples = frameTimes.length;

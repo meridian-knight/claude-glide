@@ -1,6 +1,6 @@
 # Claude Glide: project context and handover
 
-Read this first when resuming development. It records what the game is, the decisions that shaped it, how it is built, tested and deployed, and what is still open. Second game in the CyberSquad0 retro arcade series, after Claude Swarm (Snake). Last updated for release 1.0.1 (2026-10-20).
+Read this first when resuming development. It records what the game is, the decisions that shaped it, how it is built, tested and deployed, and what is still open. Second game in the CyberSquad0 retro arcade series, after Claude Swarm (Snake). Last updated for release 1.1.0 (2026-10-20).
 
 ## What it is
 
@@ -62,12 +62,14 @@ tests/e2e      Playwright matrix, 14 projects (desktop, short desktop, five phon
 - **Restart lockout.** After a death the overlay opens after 450 ms and Restart/Enter are ignored for 600 ms (`RESTART_LOCKOUT_MS`), so a mash never restarts by accident. Restart lands in the hover.
 - **Closing overlay.** `.overlay:not(.is-open) { pointer-events: none }`: during the 200 ms fade after Start/Resume the first tap must reach the frame (found by the touch tests).
 - **Pause policy.** `visibilitychange` (hidden), `blur`, `pagehide` and rotation (`orientationchange`, `screen.orientation` change) pause; resuming is always explicit. Window/toolbar resizes only refit. Opening help pauses and closing resumes only if help caused the pause; input is blocked while it is open (Space on the focused Close button closes it, which is standard).
-- **Difficulty.** By score only: speed 96 → 128 units/s (+1.6 per point, cap at 20), gap 100 → 84 units (−0.5 per point, floor at 32). Gap centres move at most 80 units between stacks; the first stack's gap stays within 40 of the start height. Reachability is a unit test over the config (closed form plus a 6000-step autopilot run).
+- **Difficulty.** By score only: speed 96 → 128 units/s (+1.6 per point, cap at 20), gap 100 → 84 units (−0.5 per point, floor at 32) before per-stack jitter; the first stack's gap stays within 40 of the start height. Reachability is a unit test over the config (closed form at both spacing extremes plus a 6000-step autopilot run).
 - **Fair hitbox.** 16x16 inside the 24x24 sprite; strict overlap, so touching edges survive; the ceiling clamps without killing.
 - **Audio** unlocks on pointerdown, pointerup, touchend, click and keydown and resumes a suspended context; a silent buffer kick helps older iOS. Flap is a quiet triangle chirp. Mute persists in localStorage.
 - **Haptics:** 15 ms on score, 30/40/60 ms on death, never on flap; only where `navigator.vibrate` exists on a coarse-pointer device (Android). iOS has no vibration API and nothing promises it.
 - **Reduced motion** disables parallax scroll, hover bob, death tumble and shake, the "+1" rise, the prompt blink, overlay transitions and mascot motion.
-- **No double-tap zoom (1.0.1).** `touch-action` is not inherited, so `manipulation` is set on every element (`*`), with `none` on the play surface and `pan-y` on the overlay; a non-passive `touchend` guard additionally cancels a second tap within 350 ms outside buttons and links for older WebKit. Pinch zoom is deliberately left available. The e2e readiness test asserts no key element computes to `touch-action: auto`.
+- **Zoom disabled (1.0.1, completed in 1.1.0 at the owner's request).** `touch-action` is not inherited, so `manipulation` is set on every element (`*`), with `none` on the play surface and `pan-y` on the overlay. The viewport meta carries `maximum-scale=1, user-scalable=no`; a non-passive `touchend` guard cancels a second tap within 350 ms anywhere but a link (a fast double tap on a chip is a zoom gesture, so its second click is dropped on purpose); WebKit `gesturestart/change/end` are cancelled (pinch). Pinch zoom is therefore off everywhere; the UI keeps 44 px targets. The e2e tests assert the meta and that no key element computes to `touch-action: auto`.
+- **Backdrop (1.1.0): a data centre at dusk.** `src/ui/backdrop.ts`: sky gradient whose phase (dusk → night → dawn → day) advances every 10 points with a 1.5 s crossfade and a "10!" float; far rack skyline (seeded layout, scroll ×0.15) whose LEDs glow steadily with only a slow 5 to 9 s brightness drift (hard blinking made the skyline look like it dropped in and out on the owner's phone); dim unpulsed token chips (×0.45) with a slow bob; sparse dust (×0.7); circuit-trace ground (×1). All layers derive from the renderer's scroll distance, so pause and reduced motion freeze them. A browser test checks the upper world stays dark enough for the stacks to read.
+- **Stacks (1.1.0).** Spacing 128 to 184 per stack, gap height jitter −6..+14 over the score ramp with an absolute floor of 78, gap-centre moves between 24 and 0.6 × spacing that flip direction after two moves the same way and reflect off the bounds instead of clamping. Reachability is still a unit test over the config, plus a statistical variety test.
 - **Touch layout:** chips (pause, help, sound) in a row under the screen, never over the play surface; short landscape puts them in a column to the left of the screen. The screen is `aspect-ratio: 3/4`, sized from `--vh - --chrome` with a `--board-min` floor; short screens scroll naturally.
 
 ## Lineage (what came from Claude Swarm)
@@ -107,6 +109,7 @@ node scripts/audit-help.mjs            # help dialog fit across 6 viewports
 |---|---|
 | `v1.0.0` / `deployed-v1.0.0` | first public release (2026-10-20) |
 | `v1.0.1` / `deployed-v1.0.1` | no double-tap zoom on any element (owner found it on a phone) |
+| `v1.1.0` / `deployed-v1.1.0` | varied stacks, data-centre-at-dusk backdrop with sky phases, zoom fully disabled |
 
 ## Verified on physical devices
 

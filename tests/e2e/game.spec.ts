@@ -289,12 +289,26 @@ test.describe('touch play', () => {
     const board = (await page.locator('#board').boundingBox())!;
     await page.touchscreen.tap(board.x + board.width / 2, board.y + board.height / 2);
     await expect.poll(() => flaps(page)).toBe(1);
-    await page.locator('#mute-btn').tap();
-    await page.locator('#mute-btn').tap();
+    // Pause straight away (a flap right before a chip tap must not swallow the chip tap),
+    // then exercise the chips while the agent is safely frozen.
     await page.locator('#pause-btn').tap();
     await expect.poll(() => status(page)).toBe('paused');
-    await page.locator('#pause-btn').tap();
-    await expect.poll(() => status(page)).toBe('running');
+    await page.waitForTimeout(400);
+    await page.locator('#mute-btn').tap();
+    await expect(page.locator('#mute-btn')).toHaveAttribute('aria-pressed', 'true');
+    await page.waitForTimeout(400);
+    await page.locator('#mute-btn').tap();
+    await expect(page.locator('#mute-btn')).toHaveAttribute('aria-pressed', 'false');
+    expect(await status(page)).toBe('paused');
+    // A fast double tap on a chip is a zoom gesture: the second tap is swallowed, so the
+    // pause chip toggles once (paused → running), and nothing zooms.
+    await page.waitForTimeout(400);
+    const pauseBox = (await page.locator('#pause-btn').boundingBox())!;
+    await page.touchscreen.tap(pauseBox.x + pauseBox.width / 2, pauseBox.y + pauseBox.height / 2);
+    await page.waitForTimeout(120);
+    await page.touchscreen.tap(pauseBox.x + pauseBox.width / 2, pauseBox.y + pauseBox.height / 2);
+    await page.waitForTimeout(200);
+    expect(await status(page)).toBe('running');
     await page.locator('#help-btn').tap();
     await expect.poll(() => status(page)).toBe('paused');
     await page.locator('#help-close').tap();
@@ -546,6 +560,7 @@ test.describe('release checks', () => {
     expect(html).toMatch(/src="\.\/assets\//);
     expect(html).not.toMatch(/localhost|TODO|127\.0\.0\.1/);
     expect(html).not.toMatch(/<meta name="robots"/);
+    expect(html).toMatch(/<meta name="viewport" content="[^"]*maximum-scale=1[^"]*user-scalable=no[^"]*"/);
     // Only the JSON-LD block is inline; application scripts are external.
     const inline = html.match(/<script(?![^>]*src=)[^>]*>/g) ?? [];
     expect(inline).toHaveLength(1);
