@@ -96,6 +96,7 @@ async function session(label, ctxOpts, touch) {
     window.__glide.setAgent({ y: 140, vy: 0 });
     window.__glide.setObstacles([{ id: 300, x: 17, gapY: 140, gapH: 100, passed: false }, { id: 301, x: 400, gapY: 140, gapH: 100, passed: false }]);
   });
+  await page.waitForTimeout(400); // a same-spot tap within 350 ms is treated as a zoom gesture
   await pause();
   await page.waitForFunction(() => window.__glide.getState().score === 1, null, { timeout: 3000 });
   check(`${label}: score once per stack`, (await state()).score === 1 && (await flaps()) === before);
