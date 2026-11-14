@@ -9,7 +9,7 @@ A static browser game in the Flappy Bird style: the player's orange pixel "agent
 - Live: https://meridian-knight.github.io/claude-glide/
 - Repository: https://github.com/meridian-knight/claude-glide (`main` deploys; `develop` is the working branch and is kept fast-forwarded onto `main`)
 - Stack: Vite 8, TypeScript 5.9, Vitest, Playwright. No runtime dependencies. Same pinned versions as Claude Swarm.
-- Sibling project: Claude Swarm at `/Users/agentnoz/Claude Swarm Game` (frozen, do not modify). The platform modules here were copied from it; see "Lineage".
+- Sibling project: Claude Swarm, https://github.com/meridian-knight/claude-swarm (frozen, do not modify). The platform modules here were copied from it; see "Lineage".
 
 ## Brand and copy rules (fixed)
 

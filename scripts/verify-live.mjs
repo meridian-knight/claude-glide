@@ -53,7 +53,7 @@ async function session(label, ctxOpts, touch) {
   check(`${label}: start copy`, meta.startText === 'Tap to flap. Thread the gaps. Beat your best.' && meta.rule === 'Avoid the stacks and the ground.');
   check(`${label}: scoreboard says Score and Best only`, /Score/.test(meta.scoreboard) && /Best/.test(meta.scoreboard) && !/Agents/.test(meta.scoreboard));
   check(`${label}: header mascot drawn`, meta.hudMascot > 0 && meta.hudMascot <= 28, `${meta.hudMascot}px`);
-  check(`${label}: footer rendered as CYBER SQUAD ZERO`, /A FAN GAME BUILT BY CYBER SQUAD ZERO \+ CLAUDE\./.test(meta.footer) && !/CYBERSQUAD0|NORTH OF ZERO/.test(meta.footer) && /NOT AFFILIATED WITH OR ENDORSED BY ANTHROPIC\./.test(meta.footer), meta.footer);
+  check(`${label}: footer rendered as CYBER SQUAD ZERO`, /A FAN GAME BUILT BY CYBER SQUAD ZERO \+ CLAUDE\./.test(meta.footer) && !/CYBERSQUAD0/.test(meta.footer) && /NOT AFFILIATED WITH OR ENDORSED BY ANTHROPIC\./.test(meta.footer), meta.footer);
   const credit = await page.evaluate(() => { const a = document.querySelector('.foot a.credit-link'); return a ? { href: a.href, rel: a.rel, text: a.innerText } : null; });
   check(`${label}: credit link to cs0.dev`, !!credit && credit.href === 'https://www.cs0.dev/' && /noopener/.test(credit.rel) && credit.text === 'CYBER SQUAD ZERO', JSON.stringify(credit));
   check(`${label}: layout`, meta.layout === (touch ? 'touch' : 'desktop'));

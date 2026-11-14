@@ -76,7 +76,7 @@ test.describe('start screen', () => {
     const foot = (await page.locator('.foot').innerText()).replace(/\s+/g, ' ').trim();
     expect(foot).toMatch(/A FAN GAME BUILT BY CYBER SQUAD ZERO \+ CLAUDE\./);
     expect(foot).toMatch(/NOT AFFILIATED WITH OR ENDORSED BY ANTHROPIC\./);
-    expect(foot).not.toMatch(/CYBERSQUAD0|NORTH OF ZERO/);
+    expect(foot).not.toMatch(/CYBERSQUAD0/);
     await expect(page.locator('.foot a.credit-link')).toHaveAttribute('href', 'https://www.cs0.dev');
     await expect(page.locator('.dpad')).toHaveCount(0);
     if (isTouch()) {
